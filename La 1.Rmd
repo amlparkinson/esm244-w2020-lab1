@@ -1,0 +1,91 @@
+---
+title: "Lab 1"
+author: "Anne-Marie Parkinson"
+date: "January 9, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(here)  
+library(janitor) 
+library(kableExtra)
+```
+
+## Load Data
+```{r}
+us_landings <- read_csv(here("data", "noaa_fisheries.csv")) 
+```
+one columnn has dollar signs in each column/row, which R will view as a character. Any column with one symbol will be interpreted as a character 
+
+## Make data tidy
+
+```{r}
+landings_tidy <- us_landings %>% 
+  clean_names() %>% 
+  mutate(state = str_to_lower(state),
+         afs_name = str_to_lower(afs_name),
+         dollars_num = parse_number(dollars_usd)) 
+
+#first mutate code says: create new colum called state which is a string to lower version of the original state column (ie the original data values were state names in all caps, this code converts the letters to all lower case which is more code friendly)
+# parse number: drops any non-numeric value in a cell before or after the first number. Good for cells with money/dollar signs (ex/ $1000 --> 1000)
+```
+
+lets get some info on salmon
+
+```{r}
+salmon_landings <- landings_tidy %>% 
+  mutate(afs_clean = str_remove(afs_name, pattern = "aggregate")) # this means: in this column, remove this word/phase from all cells in this column. Doesnt remove observations, just removes a string from them
+
+salmon_landings <- salmon_landings %>% 
+  filter (str_detect(afs_clean, pattern = "salmon")) %>%  # usu we filter by finding an exact match to whatever is in " ". Now we want to filter for a partial match
+  separate(afs_clean, into = c("group", "species"), sep = ",") # for columns with multiple pieces of data, this splits that data up into their own columns while keeping the original column. The into=c() is to give names to the new columns. sep is to tell R what to look for to split the data. In this case, im saying after a comma (,) split the data after that comma and before the comma into their own rows
+```
+
+Find some grouped summary data
+
+Find annual total us alndings and dollar value (summing across all states) for each TYPE of salmon using group_by and summarize
+
+```{r}
+salmon_summary <- salmon_landings %>% 
+  group_by(year, species) %>% 
+  summarize(
+    tot_landings = sum(landings_pounds),
+    tot_value = sum(dollars_num)
+  )
+```
+
+
+Graph!
+
+```{r}
+salmon_landings_graph <- ggplot(salmon_summary, aes(x= year, y=tot_landings)) +
+  geom_line(aes(color=species))
+
+ggsave(plot - salmon_landings_graph, 
+       here('figures', "us_salmon_ah.png"),
+       height=5,
+       width=8) # defalt is 7x7, so can customize our saved iamge size. 
+```
+
+
+
+Make nice kable table:
+
+head() - saves the top n lines
+tail () - saves last n lines
+
+```{r}
+
+salmno_first5 <- salmon_summary %>% 
+  head(5)
+
+kable(salmno_first5) #too lazy to finish. 
+```
+
+
+End of lab. 
